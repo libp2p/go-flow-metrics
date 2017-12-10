@@ -30,9 +30,16 @@ func (sw *sweeper) start() {
 
 func (sw *sweeper) run() {
 	for m := range sw.registerChannel {
-		sw.meters = append(sw.meters, m)
+		sw.register(m)
 		sw.runActive()
 	}
+}
+
+func (sw *sweeper) register(m *Meter) {
+	// Add back the snapshot total. If we unregistered this
+	// one, we set it to zero.
+	atomic.AddUint64(&m.accumulator, m.snapshot.Total)
+	sw.meters = append(sw.meters, m)
 }
 
 func (sw *sweeper) runActive() {
@@ -50,14 +57,7 @@ func (sw *sweeper) runActive() {
 		case t := <-ticker.C:
 			sw.update(t)
 		case m := <-sw.registerChannel:
-			// Add back the snapshot total. If we unregistered this
-			// one, we set it to zero.
-
-			// Technically, I don't need to take a lock here as this
-			// is the only thread that writes to it.
-			// However, I'm not sure if go is smart enough for that.
-			atomic.AddUint64(&m.accumulator, m.Snapshot().Total)
-			sw.meters = append(sw.meters, m)
+			sw.register(m)
 		}
 	}
 	sw.meters = nil
