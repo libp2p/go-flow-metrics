@@ -50,6 +50,13 @@ func (sw *sweeper) runActive() {
 		case t := <-ticker.C:
 			sw.update(t)
 		case m := <-sw.registerChannel:
+			// Add back the snapshot total. If we unregistered this
+			// one, we set it to zero.
+
+			// Technically, I don't need to take a lock here as this
+			// is the only thread that writes to it.
+			// However, I'm not sure if go is smart enough for that.
+			atomic.AddUint64(&m.runningTotal, m.Snapshot().Total)
 			sw.meters = append(sw.meters, m)
 		}
 	}
@@ -60,9 +67,9 @@ func (sw *sweeper) runActive() {
 func (sw *sweeper) update(t time.Time) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	for i := 0; i < len(sw.meters); {
+	for i := 0; i < len(sw.meters); i++ {
 		m := sw.meters[i]
-		total := atomic.LoadUint64(&m.total)
+		total := atomic.LoadUint64(&m.runningTotal)
 		diff := total - m.snapshot.Total
 
 		if m.snapshot.Rate == 0 {
@@ -75,29 +82,40 @@ func (sw *sweeper) update(t time.Time) {
 		// This is equivalent to one zeros, then one, then 30 zeros.
 		// We'll consider that to be "idle".
 		if m.snapshot.Rate < 1e-13 {
+			// Reset the rate, keep the total.
+			m.snapshot.Rate = 0
+
+			// Mark this as idle by zeroing the total.
+			swappedTotal := atomic.SwapUint64(&m.runningTotal, 0)
+
+			// Not so idle...
+			if swappedTotal > total {
+				// First, add the total back.
+				addedTotal := atomic.AddUint64(&m.runningTotal, swappedTotal)
+
+				// Are we the *first* to add to the running total?
+				if addedTotal == swappedTotal {
+					// Yes. We have the right of first
+					// registration. However, it's already
+					// registered so just continue.
+					continue
+				}
+				// Otherwise, there has been an event since we
+				// marked the meter as unregistered so we must
+				// unregister (there's a registration sitting in
+				// the registration channel).
+			}
+
 			// remove it.
 			sw.meters[i] = sw.meters[len(sw.meters)-1]
 			sw.meters[len(sw.meters)-1] = nil
 			sw.meters = sw.meters[:len(sw.meters)-1]
-
-			// reset these. The total can stay.
-			m.snapshot.Rate = 0
-
-			atomic.StoreInt32(&m.registered, 0)
-		} else {
-			i++
+			i--
 		}
-
 	}
 }
 
 func (sw *sweeper) Register(m *Meter) {
-	// Short cut. Swap is slow (and rarely needed).
-	if atomic.LoadInt32(&m.registered) == 1 {
-		return
-	}
-	if atomic.SwapInt32(&m.registered, 1) == 0 {
-		sw.sweepOnce.Do(sw.start)
-		sw.registerChannel <- m
-	}
+	sw.sweepOnce.Do(sw.start)
+	sw.registerChannel <- m
 }
