@@ -14,7 +14,6 @@ type Snapshot struct {
 // Meter is a meter for monitoring a flow.
 type Meter struct {
 	accumulator uint64
-	registered  int32
 
 	// Take lock.
 	snapshot Snapshot
