@@ -100,10 +100,14 @@ func (sw *sweeper) update(t time.Time) {
 					// registered so just continue.
 					continue
 				}
+
 				// Otherwise, there has been an event since we
 				// marked the meter as unregistered so we must
 				// unregister (there's a registration sitting in
 				// the registration channel).
+				// Remove what we've added, the registration
+				// loop will fix this for us.
+				atomic.AddUint64(&m.accumulator, ^uint64(swappedTotal-1))
 			}
 
 			// remove it.
