@@ -89,25 +89,29 @@ func (sw *sweeper) update(t time.Time) {
 			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
 
 			// Not so idle...
+			// OK, now we need to make sure this gets re-registered.
 			if swappedTotal > total {
-				// First, add the total back.
-				addedTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
+				// First, add back what we removed. If we can do
+				// this fast enough, we can put it back before
+				// anything notices.
+				currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
 
-				// Are we the *first* to add to the running total?
-				if addedTotal == swappedTotal {
-					// Yes. We have the right of first
-					// registration. However, it's already
-					// registered so just continue.
+				// Did we make it?
+				if currentTotal == swappedTotal {
+					// Yes! Nobody noticed! Move along.
 					continue
 				}
 
-				// Otherwise, there has been an event since we
-				// marked the meter as unregistered so we must
-				// unregister (there's a registration sitting in
-				// the registration channel).
-				// Remove what we've added, the registration
-				// loop will fix this for us.
-				atomic.AddUint64(&m.accumulator, ^uint64(swappedTotal-1))
+				// Otherwise, someone noticed (and has or will
+				// put this meter into the registration
+				// channel).
+				//
+				// Remove the snapshot total before
+				// unregistering, we'll add it back on
+				// registration.
+				//
+				// (that's two's compliment, see the docs)
+				atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
 			}
 
 			// remove it.
