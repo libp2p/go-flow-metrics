@@ -60,7 +60,7 @@ func (sw *sweeper) runActive() {
 func (sw *sweeper) update(t time.Time) {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
-	for i := 0; i < len(sw.meters); i++ {
+	for i := 0; i < len(sw.meters); {
 		m := sw.meters[i]
 		total := atomic.LoadUint64(&m.total)
 		diff := total - m.snapshot.Total
@@ -84,6 +84,8 @@ func (sw *sweeper) update(t time.Time) {
 			m.snapshot.Rate = 0
 
 			atomic.StoreInt32(&m.registered, 0)
+		} else {
+			i++
 		}
 
 	}
