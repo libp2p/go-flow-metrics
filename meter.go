@@ -17,7 +17,6 @@ type Meter struct {
 	registered int32
 
 	// Take lock.
-	idleTime uint32
 	snapshot Snapshot
 }
 

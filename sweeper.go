@@ -64,24 +64,6 @@ func (sw *sweeper) update(t time.Time) {
 		m := sw.meters[i]
 		total := atomic.LoadUint64(&m.total)
 		diff := total - m.snapshot.Total
-		if diff == 0 {
-			if m.idleTime == IdleTimeout {
-				// remove it.
-				sw.meters[i] = sw.meters[len(sw.meters)-1]
-				sw.meters[len(sw.meters)-1] = nil
-				sw.meters = sw.meters[:len(sw.meters)-1]
-
-				// reset these. The total can stay.
-				m.idleTime = 0
-				m.snapshot.Rate = 0
-
-				atomic.StoreInt32(&m.registered, 0)
-				continue
-			}
-			m.idleTime++
-		} else {
-			m.idleTime = 0
-		}
 
 		if m.snapshot.Rate == 0 {
 			m.snapshot.Rate = float64(diff)
@@ -89,6 +71,20 @@ func (sw *sweeper) update(t time.Time) {
 			m.snapshot.Rate += alpha * (float64(diff) - m.snapshot.Rate)
 		}
 		m.snapshot.Total = total
+
+		// This is equivalent to one zeros, then one, then 30 zeros.
+		// We'll consider that to be "idle".
+		if m.snapshot.Rate < 1e-13 {
+			// remove it.
+			sw.meters[i] = sw.meters[len(sw.meters)-1]
+			sw.meters[len(sw.meters)-1] = nil
+			sw.meters = sw.meters[:len(sw.meters)-1]
+
+			// reset these. The total can stay.
+			m.snapshot.Rate = 0
+
+			atomic.StoreInt32(&m.registered, 0)
+		}
 
 	}
 }
