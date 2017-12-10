@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -9,6 +10,10 @@ import (
 type Snapshot struct {
 	Rate  float64
 	Total uint64
+}
+
+func (s Snapshot) String() string {
+	return fmt.Sprintf("%d (%f/s)", s.Total, s.Rate)
 }
 
 // Meter is a meter for monitoring a flow.
