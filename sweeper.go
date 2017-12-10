@@ -63,7 +63,8 @@ func (sw *sweeper) update(t time.Time) {
 	for i := 0; i < len(sw.meters); i++ {
 		m := sw.meters[i]
 		total := atomic.LoadUint64(&m.total)
-		if total == m.snapshot.Total {
+		diff := total - m.snapshot.Total
+		if diff == 0 {
 			if m.idleTime == IdleTimeout {
 				// remove it.
 				sw.meters[i] = sw.meters[len(sw.meters)-1]
@@ -75,20 +76,19 @@ func (sw *sweeper) update(t time.Time) {
 				m.snapshot.Rate = 0
 
 				atomic.StoreInt32(&m.registered, 0)
-			} else {
-				m.idleTime++
+				continue
 			}
-			continue
+			m.idleTime++
+		} else {
+			m.idleTime = 0
 		}
 
-		diff := float64(total - m.snapshot.Total)
 		if m.snapshot.Rate == 0 {
-			m.snapshot.Rate = diff
+			m.snapshot.Rate = float64(diff)
 		} else {
-			m.snapshot.Rate += alpha * (diff - m.snapshot.Rate)
+			m.snapshot.Rate += alpha * (float64(diff) - m.snapshot.Rate)
 		}
 		m.snapshot.Total = total
-		m.idleTime = 0
 
 	}
 }
