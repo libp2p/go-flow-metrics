@@ -13,8 +13,8 @@ type Snapshot struct {
 
 // Meter is a meter for monitoring a flow.
 type Meter struct {
-	runningTotal uint64
-	registered   int32
+	accumulator uint64
+	registered  int32
 
 	// Take lock.
 	snapshot Snapshot
@@ -22,7 +22,7 @@ type Meter struct {
 
 // Mark updates the total.
 func (m *Meter) Mark(count uint64) {
-	if count > 0 && atomic.AddUint64(&m.runningTotal, count) == count {
+	if count > 0 && atomic.AddUint64(&m.accumulator, count) == count {
 		// I'm the first one to bump this above 0.
 		// Register it.
 		globalSweeper.Register(m)

@@ -56,7 +56,7 @@ func (sw *sweeper) runActive() {
 			// Technically, I don't need to take a lock here as this
 			// is the only thread that writes to it.
 			// However, I'm not sure if go is smart enough for that.
-			atomic.AddUint64(&m.runningTotal, m.Snapshot().Total)
+			atomic.AddUint64(&m.accumulator, m.Snapshot().Total)
 			sw.meters = append(sw.meters, m)
 		}
 	}
@@ -69,7 +69,7 @@ func (sw *sweeper) update(t time.Time) {
 	defer sw.mutex.Unlock()
 	for i := 0; i < len(sw.meters); i++ {
 		m := sw.meters[i]
-		total := atomic.LoadUint64(&m.runningTotal)
+		total := atomic.LoadUint64(&m.accumulator)
 		diff := total - m.snapshot.Total
 
 		if m.snapshot.Rate == 0 {
@@ -86,12 +86,12 @@ func (sw *sweeper) update(t time.Time) {
 			m.snapshot.Rate = 0
 
 			// Mark this as idle by zeroing the total.
-			swappedTotal := atomic.SwapUint64(&m.runningTotal, 0)
+			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
 
 			// Not so idle...
 			if swappedTotal > total {
 				// First, add the total back.
-				addedTotal := atomic.AddUint64(&m.runningTotal, swappedTotal)
+				addedTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
 
 				// Are we the *first* to add to the running total?
 				if addedTotal == swappedTotal {
