@@ -81,45 +81,49 @@ func (sw *sweeper) update(t time.Time) {
 
 		// This is equivalent to one zeros, then one, then 30 zeros.
 		// We'll consider that to be "idle".
-		if m.snapshot.Rate < 1e-13 {
-			// Reset the rate, keep the total.
-			m.snapshot.Rate = 0
+		if m.snapshot.Rate > 1e-13 {
+			continue
+		}
 
-			// Mark this as idle by zeroing the total.
-			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
+		// Ok, so we are idle...
 
-			// Not so idle...
-			// OK, now we need to make sure this gets re-registered.
-			if swappedTotal > total {
-				// First, add back what we removed. If we can do
-				// this fast enough, we can put it back before
-				// anything notices.
-				currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
+		// Mark this as idle by zeroing the total.
+		swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
 
-				// Did we make it?
-				if currentTotal == swappedTotal {
-					// Yes! Nobody noticed! Move along.
-					continue
-				}
+		// Not so idle...
+		// OK, now we need to make sure this gets re-registered.
+		if swappedTotal > total {
+			// First, add back what we removed. If we can do
+			// this fast enough, we can put it back before
+			// anything notices.
+			currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
 
-				// Otherwise, someone noticed (and has or will
-				// put this meter into the registration
-				// channel).
-				//
-				// Remove the snapshot total before
-				// unregistering, we'll add it back on
-				// registration.
-				//
-				// (that's two's compliment, see the docs)
-				atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
+			// Did we make it?
+			if currentTotal == swappedTotal {
+				// Yes! Nobody noticed! Move along.
+				continue
 			}
 
-			// remove it.
-			sw.meters[i] = sw.meters[len(sw.meters)-1]
-			sw.meters[len(sw.meters)-1] = nil
-			sw.meters = sw.meters[:len(sw.meters)-1]
-			i--
+			// Otherwise, someone noticed (and has or will
+			// put this meter into the registration
+			// channel).
+			//
+			// Remove the snapshot total before
+			// unregistering, we'll add it back on
+			// registration.
+			//
+			// (that's two's compliment, see the docs)
+			atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
 		}
+
+		// Reset the rate, keep the total.
+		m.snapshot.Rate = 0
+
+		// remove it.
+		sw.meters[i] = sw.meters[len(sw.meters)-1]
+		sw.meters[len(sw.meters)-1] = nil
+		sw.meters = sw.meters[:len(sw.meters)-1]
+		i--
 	}
 }
 
