@@ -7,17 +7,17 @@ import (
 
 func TestRegistry(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.GetMeter("first")
-	m2 := r.GetMeter("second")
+	m1 := r.Get("first")
+	m2 := r.Get("second")
 	m1.Mark(10)
 	m2.Mark(30)
 
 	time.Sleep(2 * time.Second)
 
-	if total := r.GetMeter("first").Snapshot().Total; total != 10 {
+	if total := r.Get("first").Snapshot().Total; total != 10 {
 		t.Errorf("expected first total to be 10, got %d", total)
 	}
-	if total := r.GetMeter("second").Snapshot().Total; total != 30 {
+	if total := r.Get("second").Snapshot().Total; total != 30 {
 		t.Errorf("expected second total to be 30, got %d", total)
 	}
 
@@ -35,7 +35,7 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("missing meters: '%v'", expectedMeters)
 	}
 
-	r.RemoveMeter("first")
+	r.Remove("first")
 
 	found := false
 	r.ForEach(func(n string, m *Meter) {
@@ -53,7 +53,7 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("didn't find second meter")
 	}
 
-	m3 := r.GetMeter("first")
+	m3 := r.Get("first")
 	if m3 == m1 {
 		t.Error("should have gotten a new meter")
 	}

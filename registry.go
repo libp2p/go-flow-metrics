@@ -9,8 +9,8 @@ type MeterRegistry struct {
 	meters sync.Map
 }
 
-// GetMeter gets (or creates) a meter by name.
-func (r *MeterRegistry) GetMeter(name string) *Meter {
+// Get gets (or creates) a meter by name.
+func (r *MeterRegistry) Get(name string) *Meter {
 	if m, ok := r.meters.Load(name); ok {
 		return m.(*Meter)
 	}
@@ -18,8 +18,8 @@ func (r *MeterRegistry) GetMeter(name string) *Meter {
 	return m.(*Meter)
 }
 
-// RemoveMeter removes the named meter from the registry.
-func (r *MeterRegistry) RemoveMeter(name string) {
+// Remove removes the named meter from the registry.
+func (r *MeterRegistry) Remove(name string) {
 	r.meters.Delete(name)
 }
 
