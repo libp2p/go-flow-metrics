@@ -19,6 +19,9 @@ func (r *MeterRegistry) Get(name string) *Meter {
 }
 
 // Remove removes the named meter from the registry.
+//
+// Note: The only reason to do this is to save a bit of memory. Unused meters
+// don't consume any CPU (after they go idle).
 func (r *MeterRegistry) Remove(name string) {
 	r.meters.Delete(name)
 }
