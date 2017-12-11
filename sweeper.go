@@ -87,39 +87,40 @@ func (sw *sweeper) update(t time.Time) {
 
 		// Ok, so we are idle...
 
-		// Mark this as idle by zeroing the total.
+		// Mark this as idle by zeroing the accumulator.
 		swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
 
-		// Not so idle...
-		// OK, now we need to make sure this gets re-registered.
+		// So..., are we really idle?
 		if swappedTotal > total {
-			// First, add back what we removed. If we can do
-			// this fast enough, we can put it back before
-			// anything notices.
+			// Not so idle...
+			// Now we need to make sure this gets re-registered.
+
+			// First, add back what we removed. If we can do this
+			// fast enough, we can put it back before anyone
+			// notices.
 			currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
 
 			// Did we make it?
 			if currentTotal == swappedTotal {
-				// Yes! Nobody noticed! Move along.
+				// Yes! Nobody noticed, move along.
 				continue
 			}
-
-			// Otherwise, someone noticed (and has or will
-			// put this meter into the registration
-			// channel).
+			// No. Someone noticed and will (or has) put back into
+			// the registration channel.
 			//
-			// Remove the snapshot total before
-			// unregistering, we'll add it back on
+			// Remove the snapshot total, it'll get added back on
 			// registration.
 			//
-			// (that's two's compliment, see the docs)
+			// `^uint64(total - 1)` is the two's compliment of
+			// `total`. It's the "correct" way to subtract
+			// atomically in go.
 			atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
 		}
 
 		// Reset the rate, keep the total.
 		m.snapshot.Rate = 0
 
-		// remove it.
+		// remove it and repeat `i`
 		sw.meters[i] = sw.meters[len(sw.meters)-1]
 		sw.meters[len(sw.meters)-1] = nil
 		sw.meters = sw.meters[:len(sw.meters)-1]
