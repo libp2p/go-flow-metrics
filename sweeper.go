@@ -7,8 +7,12 @@ import (
 	"time"
 )
 
-// IdleTimeout is the amount of time a meter is allowed to be idle before it is suspended.
-var IdleTimeout uint32 = 60 // a minute
+// IdleRate the rate at which we declare a meter idle (and stop tracking it
+// until it's re-registered).
+//
+// The default ensures that 1 event every ~30s will keep the meter from going
+// idle.
+var IdleRate = 1e-13
 
 // Alpha for EWMA of 1s
 var alpha = 1 - math.Exp(-1.0)
@@ -81,7 +85,7 @@ func (sw *sweeper) update(t time.Time) {
 
 		// This is equivalent to one zeros, then one, then 30 zeros.
 		// We'll consider that to be "idle".
-		if m.snapshot.Rate > 1e-13 {
+		if m.snapshot.Rate > IdleRate {
 			continue
 		}
 
