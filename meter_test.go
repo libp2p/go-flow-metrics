@@ -2,6 +2,7 @@ package flow
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -24,6 +25,6 @@ func ExampleMeter() {
 	// Get the current total.
 	total := meter.Snapshot().Total
 
-	fmt.Printf("%d (%d/s)\n", total, int64(rate))
+	fmt.Printf("%d (%d/s)\n", total, int64(math.Round(float64(rate)/10)))
 	// Output: 3000 (300/s)
 }
