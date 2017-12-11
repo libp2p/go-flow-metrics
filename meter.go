@@ -38,3 +38,7 @@ func (m *Meter) Snapshot() Snapshot {
 	defer globalSweeper.mutex.RUnlock()
 	return m.snapshot
 }
+
+func (m *Meter) String() string {
+	return m.Snapshot().String()
+}
