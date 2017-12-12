@@ -25,6 +25,10 @@ func ExampleMeter() {
 	// Get the current total.
 	total := meter.Snapshot().Total
 
-	fmt.Printf("%d (%d/s)\n", total, int64(math.Round(float64(rate)/10)))
+	fmt.Printf("%d (%d/s)\n", total, roundTens(rate))
 	// Output: 3000 (300/s)
+}
+
+func roundTens(x float64) int64 {
+	return int64(math.Floor(x/10+0.5)) * 10
 }
