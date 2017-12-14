@@ -24,6 +24,7 @@ type sweeper struct {
 	sweepOnce       sync.Once
 	meters          []*Meter
 	mutex           sync.RWMutex
+	lastUpdateTime  time.Time
 	registerChannel chan *Meter
 }
 
@@ -49,6 +50,8 @@ func (sw *sweeper) register(m *Meter) {
 func (sw *sweeper) runActive() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+
+	sw.lastUpdateTime = time.Now()
 	for len(sw.meters) > 0 {
 		// Scale back allocation.
 		if len(sw.meters)*2 < cap(sw.meters) {
@@ -58,8 +61,8 @@ func (sw *sweeper) runActive() {
 		}
 
 		select {
-		case t := <-ticker.C:
-			sw.update(t)
+		case <-ticker.C:
+			sw.update()
 		case m := <-sw.registerChannel:
 			sw.register(m)
 		}
@@ -68,18 +71,27 @@ func (sw *sweeper) runActive() {
 	// Till next time.
 }
 
-func (sw *sweeper) update(t time.Time) {
+func (sw *sweeper) update() {
 	sw.mutex.Lock()
 	defer sw.mutex.Unlock()
+
+	now := time.Now()
+	tdiff := now.Sub(sw.lastUpdateTime)
+	if tdiff <= 0 {
+		return
+	}
+	sw.lastUpdateTime = now
+	timeMultiplier := float64(time.Second) / float64(tdiff)
+
 	for i := 0; i < len(sw.meters); i++ {
 		m := sw.meters[i]
 		total := atomic.LoadUint64(&m.accumulator)
-		diff := total - m.snapshot.Total
+		instant := timeMultiplier * float64(total-m.snapshot.Total)
 
 		if m.snapshot.Rate == 0 {
-			m.snapshot.Rate = float64(diff)
+			m.snapshot.Rate = instant
 		} else {
-			m.snapshot.Rate += alpha * (float64(diff) - m.snapshot.Rate)
+			m.snapshot.Rate += alpha * (instant - m.snapshot.Rate)
 		}
 		m.snapshot.Total = total
 
