@@ -17,7 +17,7 @@ func TestBasic(t *testing.T) {
 			defer ticker.Stop()
 
 			m := new(Meter)
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 300; i++ {
 				m.Mark(1000)
 				<-ticker.C
 			}
@@ -42,8 +42,8 @@ func TestBasic(t *testing.T) {
 
 			// get the right total
 			actual = m.Snapshot()
-			if actual.Total != 140000 {
-				t.Errorf("expected total %d, got %d", 120000, actual.Total)
+			if actual.Total != 340000 {
+				t.Errorf("expected total %d, got %d", 340000, actual.Total)
 			}
 		}()
 	}
@@ -60,7 +60,7 @@ func TestShared(t *testing.T) {
 				defer wg.Done()
 				ticker := time.NewTicker(40 * time.Millisecond)
 				defer ticker.Stop()
-				for i := 0; i < 100; i++ {
+				for i := 0; i < 300; i++ {
 					m.Mark(50)
 					<-ticker.C
 				}
@@ -73,7 +73,7 @@ func TestShared(t *testing.T) {
 		}
 		go func() {
 			defer wg.Done()
-			time.Sleep(40 * 100 * time.Millisecond)
+			time.Sleep(40 * 300 * time.Millisecond)
 			actual := m.Snapshot()
 			if !approxEq(actual.Rate, 25000, 250) {
 				t.Errorf("expected rate 25000 (±250), got %f", actual.Rate)
@@ -92,8 +92,8 @@ func TestShared(t *testing.T) {
 
 			// get the right total
 			actual = m.Snapshot()
-			if actual.Total != 140000 {
-				t.Errorf("expected total %d, got %d", 140000, actual.Total)
+			if actual.Total != 340000 {
+				t.Errorf("expected total %d, got %d", 340000, actual.Total)
 			}
 		}()
 	}
