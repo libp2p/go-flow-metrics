@@ -35,3 +35,7 @@ Small note: If editing the Readme, please conform to the [standard-readme](https
 ## License
 
 MIT © Protocol Labs
+
+---
+
+The last gx published version of this module was: 0.2.0: QmQFXpvKpF34dK9HcE7k8Ksk8V4BwWYZtdEcjzu5aUgRVr
