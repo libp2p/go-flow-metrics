@@ -1,6 +1,6 @@
 package flow
 
-import moved "github.com/libp2p/go-libp2p/metrics"
+import moved "github.com/libp2p/go-libp2p-core/metrics"
 
 // Deprecated: Use github.com/libp2p/go-libp2p/metrics.IdleRate instead.
 // Warning: it's not possible to alias variables in Go. Setting a value here may have no effect.
