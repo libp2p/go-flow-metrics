@@ -14,4 +14,3 @@ type Meter = moved.Meter
 
 // Deprecated: Use github.com/libp2p/go-libp2p/metrics.MeterRegistry instead.
 type MeterRegistry = moved.MeterRegistry
-
