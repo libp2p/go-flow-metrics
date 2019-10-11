@@ -87,7 +87,12 @@ func (sw *sweeper) update() {
 
 	for i, m := range sw.meters {
 		total := atomic.LoadUint64(&m.accumulator)
-		instant := timeMultiplier * float64(total-m.snapshot.Total)
+		diff := total - m.snapshot.Total
+		instant := timeMultiplier * float64(diff)
+
+		if diff > 0 {
+			m.snapshot.LastUpdate = now
+		}
 
 		if m.snapshot.Rate == 0 {
 			m.snapshot.Rate = instant

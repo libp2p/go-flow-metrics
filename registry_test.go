@@ -9,6 +9,9 @@ func TestRegistry(t *testing.T) {
 	r := new(MeterRegistry)
 	m1 := r.Get("first")
 	m2 := r.Get("second")
+
+	m1Update := m1.Snapshot().LastUpdate
+
 	m1.Mark(10)
 	m2.Mark(30)
 
@@ -19,6 +22,10 @@ func TestRegistry(t *testing.T) {
 	}
 	if total := r.Get("second").Snapshot().Total; total != 30 {
 		t.Errorf("expected second total to be 30, got %d", total)
+	}
+
+	if !m1.Snapshot().LastUpdate.After(m1Update) {
+		t.Error("expected the last update to have been updated")
 	}
 
 	expectedMeters := map[string]*Meter{
@@ -73,5 +80,21 @@ func TestRegistry(t *testing.T) {
 	})
 	if len(expectedMeters) != 0 {
 		t.Errorf("missing meters: '%v'", expectedMeters)
+	}
+
+	before := time.Now()
+	m3.Mark(1)
+	time.Sleep(2 * time.Second)
+	after := time.Now()
+	if len(r.FindIdle(before)) != 1 {
+		t.Error("expected 1 idle timer")
+	}
+	if len(r.FindIdle(after)) != 2 {
+		t.Error("expected 2 idle timers")
+	}
+
+	count := r.TrimIdle(after)
+	if count != 2 {
+		t.Error("expected to trim 2 idle timers")
 	}
 }
