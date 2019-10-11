@@ -74,4 +74,37 @@ func TestRegistry(t *testing.T) {
 	if len(expectedMeters) != 0 {
 		t.Errorf("missing meters: '%v'", expectedMeters)
 	}
+
+	trimmed, remaining := r.MarkAndTrimIdle()
+	if remaining != 2 {
+		t.Errorf("expected 2 remaining, got %d", remaining)
+	}
+	if trimmed != 0 {
+		t.Errorf("expected 0 trimmed, got %d", trimmed)
+	}
+	m3.Mark(1)
+	time.Sleep(2 * time.Second)
+	trimmed, remaining = r.MarkAndTrimIdle()
+	if remaining != 1 {
+		t.Errorf("expected 1 remaining, got %d", remaining)
+	}
+	if trimmed != 1 {
+		t.Errorf("expected 1 trimmed, got %d", trimmed)
+	}
+
+	time.Sleep(2 * time.Second)
+	trimmed, remaining = r.MarkAndTrimIdle()
+	if remaining != 0 {
+		t.Errorf("expected 0 remaining, got %d", remaining)
+	}
+	if trimmed != 1 {
+		t.Errorf("expected 1 trimmed, got %d", trimmed)
+	}
+	trimmed, remaining = r.MarkAndTrimIdle()
+	if remaining != 0 {
+		t.Errorf("expected 0 remaining, got %d", remaining)
+	}
+	if trimmed != 0 {
+		t.Errorf("expected 0 trimmed, got %d", trimmed)
+	}
 }
