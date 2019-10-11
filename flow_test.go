@@ -22,8 +22,8 @@ func TestBasic(t *testing.T) {
 				<-ticker.C
 			}
 			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 25000, 500) {
-				t.Errorf("expected rate 25000 (±500), got %f", actual.Rate)
+			if !approxEq(actual.Rate, 25000, 1000) {
+				t.Errorf("expected rate 25000 (±1000), got %f", actual.Rate)
 			}
 
 			for i := 0; i < 200; i++ {
