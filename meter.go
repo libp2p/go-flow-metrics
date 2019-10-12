@@ -34,8 +34,8 @@ func (m *Meter) Mark(count uint64) {
 
 // Snapshot gets a consistent snapshot of the total and rate.
 func (m *Meter) Snapshot() Snapshot {
-	globalSweeper.mutex.RLock()
-	defer globalSweeper.mutex.RUnlock()
+	globalSweeper.snapshotMu.RLock()
+	defer globalSweeper.snapshotMu.RUnlock()
 	return m.snapshot
 }
 

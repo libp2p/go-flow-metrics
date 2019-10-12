@@ -39,8 +39,8 @@ func (r *MeterRegistry) MarkAndTrimIdle() (trimmed, remaining int) {
 func (r *MeterRegistry) findIdle() ([]interface{}, int) {
 	// Yes, this is a global lock. However, all taking this does is pause
 	// snapshotting.
-	globalSweeper.mutex.RLock()
-	defer globalSweeper.mutex.RUnlock()
+	globalSweeper.snapshotMu.RLock()
+	defer globalSweeper.snapshotMu.RUnlock()
 
 	// don't cast from interface -> string, we'd need to allocate when
 	// casting back.
