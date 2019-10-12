@@ -21,9 +21,11 @@ var alpha = 1 - math.Exp(-1.0)
 var globalSweeper sweeper
 
 type sweeper struct {
-	sweepOnce       sync.Once
-	meters          []*Meter
-	mutex           sync.RWMutex
+	sweepOnce sync.Once
+
+	snapshotMu sync.RWMutex
+	meters     []*Meter
+
 	lastUpdateTime  time.Time
 	registerChannel chan *Meter
 }
@@ -72,8 +74,8 @@ func (sw *sweeper) runActive() {
 }
 
 func (sw *sweeper) update() {
-	sw.mutex.Lock()
-	defer sw.mutex.Unlock()
+	sw.snapshotMu.Lock()
+	defer sw.snapshotMu.Unlock()
 
 	now := time.Now()
 	tdiff := now.Sub(sw.lastUpdateTime)

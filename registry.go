@@ -45,8 +45,8 @@ func (r *MeterRegistry) TrimIdle(since time.Time) (trimmed int) {
 func (r *MeterRegistry) walkIdle(since time.Time, cb func(key interface{})) {
 	// Yes, this is a global lock. However, all taking this does is pause
 	// snapshotting.
-	globalSweeper.mutex.RLock()
-	defer globalSweeper.mutex.RUnlock()
+	globalSweeper.snapshotMu.RLock()
+	defer globalSweeper.snapshotMu.RUnlock()
 
 	r.meters.Range(func(k, v interface{}) bool {
 		// So, this _is_ slightly inaccurate.
