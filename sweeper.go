@@ -30,6 +30,9 @@ func SetClock(c clock.Clock) {
 	cl = c
 }
 
+// We tick every second.
+var ewmaRate = time.Second
+
 type sweeper struct {
 	sweepOnce sync.Once
 
@@ -63,7 +66,7 @@ func (sw *sweeper) register(m *Meter) {
 }
 
 func (sw *sweeper) runActive() {
-	ticker := cl.Ticker(time.Second)
+	ticker := cl.Ticker(ewmaRate)
 	defer ticker.Stop()
 
 	sw.lastUpdateTime = cl.Now()
@@ -92,11 +95,11 @@ func (sw *sweeper) update() {
 
 	now := cl.Now()
 	tdiff := now.Sub(sw.lastUpdateTime)
-	if tdiff <= 0 {
+	if tdiff <= ewmaRate/10 {
 		return
 	}
 	sw.lastUpdateTime = now
-	timeMultiplier := float64(time.Second) / float64(tdiff)
+	timeMultiplier := float64(ewmaRate) / float64(tdiff)
 
 	// Calculate the bandwidth for all active meters.
 	for i, m := range sw.meters[:sw.activeMeters] {
