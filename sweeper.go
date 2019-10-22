@@ -95,9 +95,21 @@ func (sw *sweeper) update() {
 
 	now := cl.Now()
 	tdiff := now.Sub(sw.lastUpdateTime)
-	if tdiff <= ewmaRate/10 {
+	if tdiff < 0 {
+		// we went back in time, skip this update.
+		// note: if we go _forward_ in time, we don't really care as
+		// we'll just log really low bandwidth for a second.
+		sw.lastUpdateTime = now
+
+		// update the totals but leave the rates alone.
+		for _, m := range sw.meters {
+			m.snapshot.Total = atomic.LoadUint64(&m.accumulator)
+		}
+		return
+	} else if tdiff <= ewmaRate/10 {
 		return
 	}
+
 	sw.lastUpdateTime = now
 	timeMultiplier := float64(ewmaRate) / float64(tdiff)
 
