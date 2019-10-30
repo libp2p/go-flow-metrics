@@ -3,6 +3,7 @@ package flow
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -22,8 +23,8 @@ func TestBasic(t *testing.T) {
 				<-ticker.C
 			}
 			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 25000, 500) {
-				t.Errorf("expected rate 25000 (±500), got %f", actual.Rate)
+			if !approxEq(actual.Rate, 25000, 1000) {
+				t.Errorf("expected rate 25000 (±1000), got %f", actual.Rate)
 			}
 
 			for i := 0; i < 200; i++ {
@@ -103,8 +104,6 @@ func TestShared(t *testing.T) {
 func TestUnregister(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(100 * 2)
-	pause := make(chan struct{})
-
 	for i := 0; i < 100; i++ {
 		m := new(Meter)
 		go func() {
@@ -116,8 +115,7 @@ func TestUnregister(t *testing.T) {
 				<-ticker.C
 			}
 
-			<-pause
-			time.Sleep(2 * time.Second)
+			time.Sleep(62 * time.Second)
 
 			for i := 0; i < 40; i++ {
 				m.Mark(2)
@@ -133,7 +131,10 @@ func TestUnregister(t *testing.T) {
 				t.Errorf("expected rate 10 (±1), got %f", actual.Rate)
 			}
 
-			<-pause
+			time.Sleep(60 * time.Second)
+			if atomic.LoadUint64(&m.accumulator) != 0 {
+				t.Error("expected meter to be paused")
+			}
 
 			actual = m.Snapshot()
 			if actual.Total != 40 {
@@ -150,24 +151,13 @@ func TestUnregister(t *testing.T) {
 			if actual.Total != 120 {
 				t.Errorf("expected total 120, got %d", actual.Total)
 			}
+			if atomic.LoadUint64(&m.accumulator) == 0 {
+				t.Error("expected meter to be active")
+			}
 		}()
 
 	}
-	time.Sleep(60 * time.Second)
-	globalSweeper.mutex.Lock()
-	if len(globalSweeper.meters) != 0 {
-		t.Errorf("expected all sweepers to be unregistered: %d", len(globalSweeper.meters))
-	}
-	globalSweeper.mutex.Unlock()
-	close(pause)
-
 	wg.Wait()
-
-	globalSweeper.mutex.Lock()
-	if len(globalSweeper.meters) != 100 {
-		t.Errorf("expected all sweepers to be registered: %d", len(globalSweeper.meters))
-	}
-	globalSweeper.mutex.Unlock()
 }
 
 func approxEq(a, b, err float64) bool {
