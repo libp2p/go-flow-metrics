@@ -3,6 +3,7 @@ package flow
 import (
 	"fmt"
 	"math"
+	"sync"
 	"testing"
 	"time"
 )
@@ -46,6 +47,25 @@ func TestResetMeter(t *testing.T) {
 	if total := meter.Snapshot().Total; total != 0 {
 		t.Errorf("total = %d; want 0", total)
 	}
+}
+
+func TestMarkResetMeterMulti(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	meter := new(Meter)
+	go func(meter *Meter) {
+		meter.Mark(30)
+		meter.Mark(30)
+		wg.Done()
+	}(meter)
+
+	go func(meter *Meter) {
+		meter.Reset()
+		wg.Done()
+	}(meter)
+
+	wg.Wait()
 }
 
 func roundTens(x float64) int64 {

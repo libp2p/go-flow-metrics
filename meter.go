@@ -59,7 +59,7 @@ func (m *Meter) Reset() {
 	defer globalSweeper.snapshotMu.Unlock()
 	atomic.StoreUint64(&m.accumulator, 0)
 	m.snapshot.Rate = 0
-	m.snapshot.Total = 0
+	atomic.StoreUint64(&m.snapshot.Total, 0)
 	m.snapshot.LastUpdate = time.Now()
 }
 

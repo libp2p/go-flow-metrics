@@ -45,7 +45,7 @@ func (sw *sweeper) run() {
 func (sw *sweeper) register(m *Meter) {
 	// Add back the snapshot total. If we unregistered this
 	// one, we set it to zero.
-	atomic.AddUint64(&m.accumulator, m.snapshot.Total)
+	atomic.AddUint64(&m.accumulator, atomic.LoadUint64(&m.snapshot.Total))
 	sw.meters = append(sw.meters, m)
 }
 
