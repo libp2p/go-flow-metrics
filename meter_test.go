@@ -3,6 +3,7 @@ package flow
 import (
 	"fmt"
 	"math"
+	"testing"
 	"time"
 )
 
@@ -27,6 +28,24 @@ func ExampleMeter() {
 
 	fmt.Printf("%d (%d/s)\n", total, roundTens(rate))
 	// Output: 3000 (300/s)
+}
+
+func TestResetMeter(t *testing.T) {
+	meter := new(Meter)
+
+	meter.Mark(30)
+
+	time.Sleep(2 * time.Second)
+
+	if total := meter.Snapshot().Total; total != 30 {
+		t.Errorf("total = %d; want 30", total)
+	}
+
+	meter.Reset()
+
+	if total := meter.Snapshot().Total; total != 0 {
+		t.Errorf("total = %d; want 0", total)
+	}
 }
 
 func roundTens(x float64) int64 {
