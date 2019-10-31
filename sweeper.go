@@ -113,6 +113,7 @@ func (sw *sweeper) update() {
 
 		// Mark this as idle by zeroing the accumulator.
 		swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
+		atomic.StoreInt32(&m.registered, 0)
 
 		// So..., are we really idle?
 		if swappedTotal > total {
