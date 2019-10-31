@@ -40,14 +40,12 @@ type Meter struct {
 
 // Mark updates the total.
 func (m *Meter) Mark(count uint64) {
-	if count > 0 {
-		if atomic.AddUint64(&m.accumulator, count) == count {
-			just_registered := atomic.CompareAndSwapInt32(&m.registered, 0, 1)
-			if just_registered {
-				// I'm the first one to bump this above 0.
-				// Register it.
-				globalSweeper.Register(m)
-			}
+	if count > 0 && atomic.AddUint64(&m.accumulator, count) == count {
+		just_registered := atomic.CompareAndSwapInt32(&m.registered, 0, 1)
+		if just_registered {
+			// I'm the first one to bump this above 0.
+			// Register it.
+			globalSweeper.Register(m)
 		}
 	}
 }
