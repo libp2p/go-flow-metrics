@@ -98,3 +98,27 @@ func TestRegistry(t *testing.T) {
 		t.Error("expected to trim 2 idle timers")
 	}
 }
+
+func TestClearRegistry(t *testing.T) {
+	r := new(MeterRegistry)
+	m1 := r.Get("first")
+	m2 := r.Get("second")
+
+	m1.Mark(10)
+	m2.Mark(30)
+
+	time.Sleep(2 * time.Second)
+
+	r.Clear()
+
+	r.ForEach(func(n string, _m *Meter) {
+		t.Errorf("expected no meters at all, found a meter %s", n)
+	})
+
+	if total := r.Get("first").Snapshot().Total; total != 0 {
+		t.Errorf("expected first total to be 0, got %d", total)
+	}
+	if total := r.Get("second").Snapshot().Total; total != 0 {
+		t.Errorf("expected second total to be 0, got %d", total)
+	}
+}
