@@ -15,7 +15,7 @@ func TestRegistry(t *testing.T) {
 	m1.Mark(10)
 	m2.Mark(30)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(2*time.Second + time.Millisecond)
 
 	if total := r.Get("first").Snapshot().Total; total != 10 {
 		t.Errorf("expected first total to be 10, got %d", total)

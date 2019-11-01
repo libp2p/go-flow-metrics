@@ -151,11 +151,15 @@ func (sw *sweeper) update() {
 		sw.meters[i] = sw.meters[newLen]
 	}
 
-	// Re-add the total to all the newly active accumulators.
+	// Re-add the total to all the newly active accumulators and set the snapshot to the total.
 	// 1. We don't do this on register to avoid having to take the snapshot lock.
 	// 2. We skip calculating the bandwidth for this round so we get an _accurate_ bandwidth calculation.
 	for _, m := range sw.meters[sw.activeMeters:] {
-		atomic.AddUint64(&m.accumulator, m.snapshot.Total)
+		total := atomic.AddUint64(&m.accumulator, m.snapshot.Total)
+		if total > m.snapshot.Total {
+			m.snapshot.LastUpdate = now
+		}
+		m.snapshot.Total = total
 	}
 
 	// trim the meter list

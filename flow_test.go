@@ -108,9 +108,6 @@ func TestUnregister(t *testing.T) {
 		m := new(Meter)
 		go func() {
 			defer wg.Done()
-			m.Mark(1)
-			time.Sleep(time.Second)
-
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
 			for i := 0; i < 40; i++ {
@@ -120,9 +117,6 @@ func TestUnregister(t *testing.T) {
 
 			time.Sleep(62 * time.Second)
 
-			m.Mark(2)
-			time.Sleep(time.Second)
-
 			for i := 0; i < 40; i++ {
 				m.Mark(2)
 				<-ticker.C
@@ -130,7 +124,7 @@ func TestUnregister(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			time.Sleep(40*100*time.Millisecond + time.Second)
+			time.Sleep(40 * 100 * time.Millisecond)
 
 			actual := m.Snapshot()
 			if !approxEq(actual.Rate, 10, 1) {
@@ -143,10 +137,10 @@ func TestUnregister(t *testing.T) {
 			}
 
 			actual = m.Snapshot()
-			if actual.Total != 41 {
-				t.Errorf("expected total 41, got %d", actual.Total)
+			if actual.Total != 40 {
+				t.Errorf("expected total 4000, got %d", actual.Total)
 			}
-			time.Sleep(3*time.Second + 40*100*time.Millisecond)
+			time.Sleep(2*time.Second + 40*100*time.Millisecond)
 
 			actual = m.Snapshot()
 			if !approxEq(actual.Rate, 20, 4) {
@@ -154,8 +148,8 @@ func TestUnregister(t *testing.T) {
 			}
 			time.Sleep(2 * time.Second)
 			actual = m.Snapshot()
-			if actual.Total != 123 {
-				t.Errorf("expected total 123, got %d", actual.Total)
+			if actual.Total != 120 {
+				t.Errorf("expected total 120, got %d", actual.Total)
 			}
 			if atomic.LoadUint64(&m.accumulator) == 0 {
 				t.Error("expected meter to be active")
