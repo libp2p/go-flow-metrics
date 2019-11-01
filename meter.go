@@ -33,6 +33,9 @@ func (s Snapshot) String() string {
 type Meter struct {
 	accumulator uint64
 
+	// managed by the sweeper loop.
+	registered bool
+
 	// Take lock.
 	snapshot Snapshot
 }
@@ -40,8 +43,9 @@ type Meter struct {
 // Mark updates the total.
 func (m *Meter) Mark(count uint64) {
 	if count > 0 && atomic.AddUint64(&m.accumulator, count) == count {
-		// I'm the first one to bump this above 0.
-		// Register it.
+		// The accumulator is 0 so we probably need to register. We may
+		// already _be_ registered however, if we are, the registration
+		// loop will notice that `m.registered` is set and ignore us.
 		globalSweeper.Register(m)
 	}
 }
@@ -51,6 +55,15 @@ func (m *Meter) Snapshot() Snapshot {
 	globalSweeper.snapshotMu.RLock()
 	defer globalSweeper.snapshotMu.RUnlock()
 	return m.snapshot
+}
+
+// Reset sets accumulator, total and rate to zero.
+func (m *Meter) Reset() {
+	globalSweeper.snapshotMu.Lock()
+	atomic.StoreUint64(&m.accumulator, 0)
+	m.snapshot.Rate = 0
+	m.snapshot.Total = 0
+	globalSweeper.snapshotMu.Unlock()
 }
 
 func (m *Meter) String() string {

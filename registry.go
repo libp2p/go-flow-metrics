@@ -72,3 +72,11 @@ func (r *MeterRegistry) ForEach(iterFunc func(string, *Meter)) {
 		return true
 	})
 }
+
+// Clear removes all meters from the registry.
+func (r *MeterRegistry) Clear() {
+	r.meters.Range(func(k, v interface{}) bool {
+		r.meters.Delete(k)
+		return true
+	})
+}
