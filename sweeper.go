@@ -23,8 +23,9 @@ var globalSweeper sweeper
 type sweeper struct {
 	sweepOnce sync.Once
 
-	snapshotMu sync.RWMutex
-	meters     []*Meter
+	snapshotMu   sync.RWMutex
+	meters       []*Meter
+	activeMeters int
 
 	lastUpdateTime  time.Time
 	registerChannel chan *Meter
@@ -43,9 +44,11 @@ func (sw *sweeper) run() {
 }
 
 func (sw *sweeper) register(m *Meter) {
-	// Add back the snapshot total. If we unregistered this
-	// one, we set it to zero.
-	atomic.AddUint64(&m.accumulator, atomic.LoadUint64(&m.snapshot.Total))
+	if m.registered {
+		// registered twice, move on.
+		return
+	}
+	m.registered = true
 	sw.meters = append(sw.meters, m)
 }
 
@@ -85,9 +88,9 @@ func (sw *sweeper) update() {
 	sw.lastUpdateTime = now
 	timeMultiplier := float64(time.Second) / float64(tdiff)
 
+	// Calculate the bandwidth for all active meters.
 	newLen := len(sw.meters)
-
-	for i, m := range sw.meters {
+	for i, m := range sw.meters[:sw.activeMeters] {
 		total := atomic.LoadUint64(&m.accumulator)
 		diff := total - m.snapshot.Total
 		instant := timeMultiplier * float64(diff)
@@ -113,7 +116,6 @@ func (sw *sweeper) update() {
 
 		// Mark this as idle by zeroing the accumulator.
 		swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
-		atomic.StoreInt32(&m.registered, 0)
 
 		// So..., are we really idle?
 		if swappedTotal > total {
@@ -143,9 +145,17 @@ func (sw *sweeper) update() {
 		}
 
 		// Reset the rate, keep the total.
+		m.registered = false
 		m.snapshot.Rate = 0
 		newLen--
 		sw.meters[i] = sw.meters[newLen]
+	}
+
+	// Re-add the total to all the newly active accumulators.
+	// 1. We don't do this on register to avoid having to take the snapshot lock.
+	// 2. We skip calculating the bandwidth for this round so we get an _accurate_ bandwidth calculation.
+	for _, m := range sw.meters[sw.activeMeters:] {
+		atomic.AddUint64(&m.accumulator, m.snapshot.Total)
 	}
 
 	// trim the meter list
@@ -153,6 +163,9 @@ func (sw *sweeper) update() {
 		sw.meters[i] = nil
 	}
 	sw.meters = sw.meters[:newLen]
+
+	// Finally, mark all meters still in the list as "active".
+	sw.activeMeters = len(sw.meters)
 }
 
 func (sw *sweeper) Register(m *Meter) {
