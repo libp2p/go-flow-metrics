@@ -60,11 +60,10 @@ func (m *Meter) Snapshot() Snapshot {
 // Reset sets accumulator, total and rate to zero and last update to current time.
 func (m *Meter) Reset() {
 	globalSweeper.snapshotMu.Lock()
-	defer globalSweeper.snapshotMu.Unlock()
 	atomic.StoreUint64(&m.accumulator, 0)
 	m.snapshot.Rate = 0
 	m.snapshot.Total = 0
-	m.snapshot.LastUpdate = time.Now()
+	globalSweeper.snapshotMu.Unlock()
 }
 
 func (m *Meter) String() string {
