@@ -83,8 +83,6 @@ func (sw *sweeper) update() {
 	sw.lastUpdateTime = now
 	timeMultiplier := float64(time.Second) / float64(tdiff)
 
-	newLen := len(sw.meters)
-
 	for i, m := range sw.meters {
 		total := atomic.LoadUint64(&m.accumulator)
 		instant := timeMultiplier * float64(total-m.snapshot.Total)
@@ -136,13 +134,16 @@ func (sw *sweeper) update() {
 
 		// Reset the rate, keep the total.
 		m.snapshot.Rate = 0
-		newLen--
-		sw.meters[i] = sw.meters[newLen]
+		sw.meters[i] = nil
 	}
 
-	// trim the meter list
-	for i := newLen; i < len(sw.meters); i++ {
-		sw.meters[i] = nil
+	// compress and trim the meter list
+	var newLen int
+	for _, m := range sw.meters {
+		if m != nil {
+			sw.meters[newLen] = m
+			newLen++
+		}
 	}
 	sw.meters = sw.meters[:newLen]
 }
