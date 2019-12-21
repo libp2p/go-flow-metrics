@@ -20,6 +20,9 @@ var alpha = 1 - math.Exp(-1.0)
 // The global sweeper.
 var globalSweeper sweeper
 
+// We tick every second.
+var ewmaRate = time.Second
+
 type sweeper struct {
 	sweepOnce sync.Once
 
@@ -53,7 +56,7 @@ func (sw *sweeper) register(m *Meter) {
 }
 
 func (sw *sweeper) runActive() {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(ewmaRate)
 	defer ticker.Stop()
 
 	sw.lastUpdateTime = time.Now()
@@ -82,11 +85,23 @@ func (sw *sweeper) update() {
 
 	now := time.Now()
 	tdiff := now.Sub(sw.lastUpdateTime)
-	if tdiff <= 0 {
+	if tdiff < 0 {
+		// we went back in time, skip this update.
+		// note: if we go _forward_ in time, we don't really care as
+		// we'll just log really low bandwidth for a second.
+		sw.lastUpdateTime = now
+
+		// update the totals but leave the rates alone.
+		for _, m := range sw.meters {
+			m.snapshot.Total = atomic.LoadUint64(&m.accumulator)
+		}
+		return
+	} else if tdiff <= ewmaRate/10 {
 		return
 	}
+
 	sw.lastUpdateTime = now
-	timeMultiplier := float64(time.Second) / float64(tdiff)
+	timeMultiplier := float64(ewmaRate) / float64(tdiff)
 
 	// Calculate the bandwidth for all active meters.
 	for i, m := range sw.meters[:sw.activeMeters] {
