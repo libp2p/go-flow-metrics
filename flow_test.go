@@ -9,6 +9,9 @@ import (
 )
 
 func TestBasic(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short testing requested")
+	}
 	var wg sync.WaitGroup
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
@@ -52,6 +55,9 @@ func TestBasic(t *testing.T) {
 }
 
 func TestShared(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short testing requested")
+	}
 	var wg sync.WaitGroup
 	wg.Add(20 * 21)
 	for i := 0; i < 20; i++ {
@@ -102,6 +108,9 @@ func TestShared(t *testing.T) {
 }
 
 func TestUnregister(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short testing requested")
+	}
 	var wg sync.WaitGroup
 	wg.Add(100 * 2)
 	for i := 0; i < 100; i++ {

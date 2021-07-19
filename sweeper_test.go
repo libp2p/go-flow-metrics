@@ -7,6 +7,10 @@ import (
 
 // regression test for libp2p/go-libp2p-core#65
 func TestIdleInconsistency(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short testing requested")
+	}
+
 	r := new(MeterRegistry)
 	m1 := r.Get("first")
 	m2 := r.Get("second")
@@ -40,5 +44,4 @@ func TestIdleInconsistency(t *testing.T) {
 	if total := r.Get("third").Snapshot().Total; total != 50 {
 		t.Errorf("expected third total to be 50, got %d", total)
 	}
-
 }
