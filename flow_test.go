@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/benbjohnson/clock"
 )
 
 func TestBasic(t *testing.T) {
@@ -169,6 +171,49 @@ func TestUnregister(t *testing.T) {
 	wg.Wait()
 }
 
+func TestMockClock(t *testing.T) {
+	mockClock := useMockClock()
+	defer RestoreClock()
+
+	m := new(Meter)
+	for i := 0; i < 300; i++ {
+		m.Mark(1000)
+		mockClock.Add(40 * time.Millisecond)
+	}
+	actual := m.Snapshot()
+	checkApproxEq(t, actual.Rate, 25000, 100)
+
+	for i := 0; i < 200; i++ {
+		m.Mark(200)
+		mockClock.Add(40 * time.Millisecond)
+	}
+
+	// Adjusts
+	actual = m.Snapshot()
+	checkApproxEq(t, actual.Rate, 5000, 20)
+
+	// Let it settle.
+	mockClock.Add(2 * time.Second)
+
+	// get the right total
+	actual = m.Snapshot()
+	if actual.Total != 340000 {
+		t.Errorf("expected total %d, got %d", 340000, actual.Total)
+	}
+}
+
+func checkApproxEq(t *testing.T, rate float64, expected, err int) {
+	if !approxEq(rate, float64(expected), float64(err)) {
+		t.Errorf("expected rate %d (±%d), got %d", expected, err, int(rate))
+	}
+}
+
 func approxEq(a, b, err float64) bool {
 	return math.Abs(a-b) < err
+}
+
+func useMockClock() *clock.Mock {
+	mockClock := clock.NewMock()
+	SetClock(mockClock)
+	return mockClock
 }
