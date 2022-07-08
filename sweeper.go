@@ -75,12 +75,7 @@ func (sw *sweeper) stop() {
 
 func (sw *sweeper) run(ctx context.Context) {
 	defer close(sw.stopped)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
+	for ctx.Err() == nil {
 		select {
 		case m := <-sw.registerChannel:
 			sw.register(m)
