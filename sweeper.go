@@ -14,10 +14,10 @@ import (
 //
 // The default ensures that 1 event every ~30s will keep the meter from going
 // idle.
-var IdleRate = 1e-13
+// var IdleRate = 1e-13
 
-// Alpha for EWMA of 1s
-var alpha = 1 - math.Exp(-1.0)
+// IdleTime the time that need to pass scince last update before we declare a metere idle
+var IdleTime = 20 * time.Second
 
 // The global sweeper.
 var globalSweeper sweeper
@@ -107,52 +107,61 @@ func (sw *sweeper) update() {
 		if diff > 0 {
 			m.snapshot.LastUpdate = now
 		}
-
+		// log.Printf("Rate: %f Instant: %f Total: %d", m.snapshot.Rate, instant, total)
 		if m.snapshot.Rate == 0 {
 			m.snapshot.Rate = instant
 		} else {
-			m.snapshot.Rate += alpha * (instant - m.snapshot.Rate)
+			m.snapshot.Rate = math.Max(instant, m.snapshot.Rate)
 		}
 		m.snapshot.Total = total
 
-		// This is equivalent to one zeros, then one, then 30 zeros.
-		// We'll consider that to be "idle".
-		if m.snapshot.Rate > IdleRate {
-			continue
-		}
-
-		// Ok, so we are idle...
-
-		// Mark this as idle by zeroing the accumulator.
-		swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
-
-		// So..., are we really idle?
-		if swappedTotal > total {
-			// Not so idle...
-			// Now we need to make sure this gets re-registered.
-
-			// First, add back what we removed. If we can do this
-			// fast enough, we can put it back before anyone
-			// notices.
-			currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
-
-			// Did we make it?
-			if currentTotal == swappedTotal {
-				// Yes! Nobody noticed, move along.
+		/*
+			// This is equivalent to one zeros, then one, then 30 zeros.
+			// We'll consider that to be "idle".
+			if m.snapshot.Rate > IdleRate {
 				continue
 			}
-			// No. Someone noticed and will (or has) put back into
-			// the registration channel.
-			//
-			// Remove the snapshot total, it'll get added back on
-			// registration.
-			//
-			// `^uint64(total - 1)` is the two's complement of
-			// `total`. It's the "correct" way to subtract
-			// atomically in go.
-			atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
+		*/
+		if now.Sub(m.snapshot.LastUpdate) < IdleTime {
+			continue
 		}
+		// Ok, so we are idle...
+		if !atomic.CompareAndSwapUint64(&m.accumulator, total, 0) {
+			// ... or not
+			atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
+			// atomic.AddUint64(&m.accumulator, -total)
+		}
+		/*
+			// Mark this as idle by zeroing the accumulator.
+			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
 
+			// So..., are we really idle?
+			if swappedTotal > total {
+				// Not so idle...
+				// Now we need to make sure this gets re-registered.
+
+				// First, add back what we removed. If we can do this
+				// fast enough, we can put it back before anyone
+				// notices.
+				currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
+
+				// Did we make it?
+				if currentTotal == swappedTotal {
+					// Yes! Nobody noticed, move along.
+					continue
+				}
+				// No. Someone noticed and will (or has) put back into
+				// the registration channel.
+				//
+				// Remove the snapshot total, it'll get added back on
+				// registration.
+				//
+				// `^uint64(total - 1)` is the two's complement of
+				// `total`. It's the "correct" way to subtract
+				// atomically in go.
+				atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
+			}
+		*/
 		// Reset the rate, keep the total.
 		m.registered = false
 		m.snapshot.Rate = 0

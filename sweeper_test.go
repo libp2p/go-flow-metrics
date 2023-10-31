@@ -21,7 +21,7 @@ func TestIdleInconsistency(t *testing.T) {
 	m3.Mark(30)
 
 	// make m1 and m3 go idle
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 25; i++ {
 		time.Sleep(time.Second)
 		m2.Mark(1)
 	}
@@ -37,7 +37,7 @@ func TestIdleInconsistency(t *testing.T) {
 		t.Errorf("expected first total to be 10, got %d", total)
 	}
 
-	if total := r.Get("second").Snapshot().Total; total != 50 {
+	if total := r.Get("second").Snapshot().Total; total != 45 {
 		t.Errorf("expected second total to be 50, got %d", total)
 	}
 

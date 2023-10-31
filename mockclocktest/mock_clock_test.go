@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-flow-metrics"
+	flow "github.com/ArtemVasilevMIPT/go-maxflow-metrics"
 
 	"github.com/benbjohnson/clock"
 )

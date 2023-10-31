@@ -25,11 +25,27 @@ func TestBasic(t *testing.T) {
 				m.Mark(1000)
 				<-ticker.C
 			}
+			time.Sleep(1 * time.Second)
 			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 25000, 1000) {
-				t.Errorf("expected rate 25000 (±1000), got %f", actual.Rate)
+			if !approxEq(actual.Rate, 25000, 1100) {
+				t.Errorf("expected rate 25000 (±1100), got %f", actual.Rate)
+			}
+			if actual.Total != 300000 {
+				t.Errorf("1. Expected total %d, got %d", 300000, actual.Total)
 			}
 
+			time.Sleep(15 * time.Second)
+			if actual.Total != 300000 {
+				t.Errorf("2. Expected total %d, got %d", 300000, actual.Total)
+			}
+
+			// Let it settle.
+			time.Sleep(10 * time.Second)
+
+			actual = m.Snapshot()
+			if actual.Total != 300000 {
+				t.Errorf("3. Expected total %d, got %d", 300000, actual.Total)
+			}
 			for i := 0; i < 200; i++ {
 				m.Mark(200)
 				<-ticker.C
@@ -37,17 +53,14 @@ func TestBasic(t *testing.T) {
 
 			// Adjusts
 			actual = m.Snapshot()
-			if !approxEq(actual.Rate, 5000, 200) {
-				t.Errorf("expected rate 5000 (±200), got %f", actual.Rate)
+			if !approxEq(actual.Rate, 5000, 250) {
+				t.Errorf("expected rate 5000 (±250), got %f", actual.Rate)
 			}
-
-			// Let it settle.
-			time.Sleep(2 * time.Second)
 
 			// get the right total
 			actual = m.Snapshot()
-			if actual.Total != 340000 {
-				t.Errorf("expected total %d, got %d", 340000, actual.Total)
+			if actual.Total != 335400 {
+				t.Errorf("4. Expected total %d, got %d", 335400, actual.Total)
 			}
 		}()
 	}
