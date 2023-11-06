@@ -3,7 +3,6 @@ package flow
 import (
 	"math"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -106,7 +105,7 @@ func TestUnregister(t *testing.T) {
 
 	mockClock.Add(62 * time.Second)
 
-	if atomic.LoadUint64(&m.accumulator) != 0 {
+	if m.accumulator.Load() != 0 {
 		t.Error("expected meter to be paused")
 	}
 
@@ -131,7 +130,7 @@ func TestUnregister(t *testing.T) {
 	if actual.Total != 120 {
 		t.Errorf("expected total 120, got %d", actual.Total)
 	}
-	if atomic.LoadUint64(&m.accumulator) == 0 {
+	if m.accumulator.Load() == 0 {
 		t.Error("expected meter to be active")
 	}
 
