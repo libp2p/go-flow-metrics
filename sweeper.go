@@ -107,6 +107,12 @@ func (sw *sweeper) update() {
 		}
 		return
 	} else if tdiff <= ewmaRate/10 {
+		// If the time-delta is too small, wait a bit. Otherwise, we can end up logging a
+		// very large spike.
+		//
+		// This won't fix the case where a user passes a large update (spanning multiple
+		// seconds) to `Meter.Mark`, but it will fix the case where the system fails to
+		// accurately schedule the sweeper goroutine.
 		return
 	}
 
