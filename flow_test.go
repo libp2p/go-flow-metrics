@@ -9,164 +9,132 @@ import (
 )
 
 func TestBasic(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short testing requested")
+	m := new(Meter)
+	for i := 0; i < 300; i++ {
+		m.Mark(1000)
+		mockClock.Add(40 * time.Millisecond)
 	}
-	var wg sync.WaitGroup
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
-		go func() {
-			defer wg.Done()
-			ticker := time.NewTicker(40 * time.Millisecond)
-			defer ticker.Stop()
-
-			m := new(Meter)
-			for i := 0; i < 300; i++ {
-				m.Mark(1000)
-				<-ticker.C
-			}
-			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 25000, 1000) {
-				t.Errorf("expected rate 25000 (±1000), got %f", actual.Rate)
-			}
-
-			for i := 0; i < 200; i++ {
-				m.Mark(200)
-				<-ticker.C
-			}
-
-			// Adjusts
-			actual = m.Snapshot()
-			if !approxEq(actual.Rate, 5000, 200) {
-				t.Errorf("expected rate 5000 (±200), got %f", actual.Rate)
-			}
-
-			// Let it settle.
-			time.Sleep(2 * time.Second)
-
-			// get the right total
-			actual = m.Snapshot()
-			if actual.Total != 340000 {
-				t.Errorf("expected total %d, got %d", 340000, actual.Total)
-			}
-		}()
+	if rate := m.Snapshot().Rate; rate != 25000 {
+		t.Errorf("expected rate 25000, got %f", rate)
 	}
-	wg.Wait()
+
+	for i := 0; i < 400; i++ {
+		m.Mark(200)
+		mockClock.Add(40 * time.Millisecond)
+	}
+
+	if rate := m.Snapshot().Rate; !approxEq(rate, 5000, 1) {
+		t.Errorf("expected rate 5000, got %f", rate)
+	}
+
+	mockClock.Add(time.Second)
+
+	if total := m.Snapshot().Total; total != 380000 {
+		t.Errorf("expected total %d, got %d", 380000, total)
+	}
 }
 
 func TestShared(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short testing requested")
-	}
 	var wg sync.WaitGroup
-	wg.Add(20 * 21)
-	for i := 0; i < 20; i++ {
-		m := new(Meter)
-		for j := 0; j < 20; j++ {
-			go func() {
-				defer wg.Done()
-				ticker := time.NewTicker(40 * time.Millisecond)
-				defer ticker.Stop()
-				for i := 0; i < 300; i++ {
-					m.Mark(50)
-					<-ticker.C
-				}
-
-				for i := 0; i < 200; i++ {
-					m.Mark(10)
-					<-ticker.C
-				}
-			}()
-		}
+	wg.Add(20)
+	m := new(Meter)
+	for j := 0; j < 20; j++ {
 		go func() {
 			defer wg.Done()
-			time.Sleep(40 * 300 * time.Millisecond)
-			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 25000, 250) {
-				t.Errorf("expected rate 25000 (±250), got %f", actual.Rate)
+			for i := 0; i < 300; i++ {
+				m.Mark(50)
+				mockClock.Sleep(40 * time.Millisecond)
 			}
 
-			time.Sleep(40 * 200 * time.Millisecond)
-
-			// Adjusts
-			actual = m.Snapshot()
-			if !approxEq(actual.Rate, 5000, 50) {
-				t.Errorf("expected rate 5000 (±50), got %f", actual.Rate)
-			}
-
-			// Let it settle.
-			time.Sleep(2 * time.Second)
-
-			// get the right total
-			actual = m.Snapshot()
-			if actual.Total != 340000 {
-				t.Errorf("expected total %d, got %d", 340000, actual.Total)
+			for i := 0; i < 300; i++ {
+				m.Mark(10)
+				mockClock.Sleep(40 * time.Millisecond)
 			}
 		}()
+	}
+
+	time.Sleep(time.Millisecond)
+	mockClock.Add(20 * 300 * time.Millisecond)
+	time.Sleep(time.Millisecond)
+	mockClock.Add(20 * 300 * time.Millisecond)
+	time.Sleep(time.Millisecond)
+
+	actual := m.Snapshot()
+	if !approxEq(actual.Rate, 25000, 1) {
+		t.Errorf("expected rate 25000, got %f", actual.Rate)
+	}
+
+	time.Sleep(time.Millisecond)
+	mockClock.Add(20 * 300 * time.Millisecond)
+	time.Sleep(time.Millisecond)
+	mockClock.Add(20 * 300 * time.Millisecond)
+	time.Sleep(time.Millisecond)
+
+	// Adjusts
+	actual = m.Snapshot()
+	if !approxEq(actual.Rate, 5000, 1) {
+		t.Errorf("expected rate 5000, got %f", actual.Rate)
+	}
+
+	// Let it settle.
+	time.Sleep(time.Millisecond)
+	mockClock.Add(time.Second)
+	time.Sleep(time.Millisecond)
+	mockClock.Add(time.Second)
+	time.Sleep(time.Millisecond)
+
+	// get the right total
+	actual = m.Snapshot()
+	if actual.Total != 360000 {
+		t.Errorf("expected total %d, got %d", 360000, actual.Total)
 	}
 	wg.Wait()
 }
 
 func TestUnregister(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short testing requested")
+	m := new(Meter)
+
+	for i := 0; i < 40; i++ {
+		m.Mark(1)
+		mockClock.Add(100 * time.Millisecond)
 	}
-	var wg sync.WaitGroup
-	wg.Add(100 * 2)
-	for i := 0; i < 100; i++ {
-		m := new(Meter)
-		go func() {
-			defer wg.Done()
-			ticker := time.NewTicker(100 * time.Millisecond)
-			defer ticker.Stop()
-			for i := 0; i < 40; i++ {
-				m.Mark(1)
-				<-ticker.C
-			}
 
-			time.Sleep(62 * time.Second)
-
-			for i := 0; i < 40; i++ {
-				m.Mark(2)
-				<-ticker.C
-			}
-		}()
-		go func() {
-			defer wg.Done()
-			time.Sleep(40 * 100 * time.Millisecond)
-
-			actual := m.Snapshot()
-			if !approxEq(actual.Rate, 10, 1) {
-				t.Errorf("expected rate 10 (±1), got %f", actual.Rate)
-			}
-
-			time.Sleep(60 * time.Second)
-			if atomic.LoadUint64(&m.accumulator) != 0 {
-				t.Error("expected meter to be paused")
-			}
-
-			actual = m.Snapshot()
-			if actual.Total != 40 {
-				t.Errorf("expected total 4000, got %d", actual.Total)
-			}
-			time.Sleep(2*time.Second + 40*100*time.Millisecond)
-
-			actual = m.Snapshot()
-			if !approxEq(actual.Rate, 20, 4) {
-				t.Errorf("expected rate 20 (±4), got %f", actual.Rate)
-			}
-			time.Sleep(2 * time.Second)
-			actual = m.Snapshot()
-			if actual.Total != 120 {
-				t.Errorf("expected total 120, got %d", actual.Total)
-			}
-			if atomic.LoadUint64(&m.accumulator) == 0 {
-				t.Error("expected meter to be active")
-			}
-		}()
-
+	actual := m.Snapshot()
+	if actual.Rate != 10 {
+		t.Errorf("expected rate 10, got %f", actual.Rate)
 	}
-	wg.Wait()
+
+	mockClock.Add(62 * time.Second)
+
+	if atomic.LoadUint64(&m.accumulator) != 0 {
+		t.Error("expected meter to be paused")
+	}
+
+	actual = m.Snapshot()
+	if actual.Total != 40 {
+		t.Errorf("expected total 4000, got %d", actual.Total)
+	}
+
+	for i := 0; i < 40; i++ {
+		m.Mark(2)
+		mockClock.Add(100 * time.Millisecond)
+	}
+
+	actual = m.Snapshot()
+	if actual.Rate != 20 {
+		t.Errorf("expected rate 20, got %f", actual.Rate)
+	}
+
+	mockClock.Add(2 * time.Second)
+
+	actual = m.Snapshot()
+	if actual.Total != 120 {
+		t.Errorf("expected total 120, got %d", actual.Total)
+	}
+	if atomic.LoadUint64(&m.accumulator) == 0 {
+		t.Error("expected meter to be active")
+	}
+
 }
 
 func approxEq(a, b, err float64) bool {
