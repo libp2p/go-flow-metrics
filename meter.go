@@ -20,7 +20,7 @@ type Snapshot struct {
 func NewMeter() *Meter {
 	return &Meter{
 		snapshot: Snapshot{
-			LastUpdate: time.Now(),
+			LastUpdate: cl.Now(),
 		},
 	}
 }

@@ -3,14 +3,18 @@ package flow
 import (
 	"testing"
 	"time"
+
+	"github.com/benbjohnson/clock"
 )
+
+var mockClock = clock.NewMock()
+
+func init() {
+	SetClock(mockClock)
+}
 
 // regression test for libp2p/go-libp2p-core#65
 func TestIdleInconsistency(t *testing.T) {
-	if testing.Short() {
-		t.Skip("short testing requested")
-	}
-
 	r := new(MeterRegistry)
 	m1 := r.Get("first")
 	m2 := r.Get("second")
@@ -22,15 +26,15 @@ func TestIdleInconsistency(t *testing.T) {
 
 	// make m1 and m3 go idle
 	for i := 0; i < 30; i++ {
-		time.Sleep(time.Second)
+		mockClock.Add(time.Second)
 		m2.Mark(1)
 	}
 
-	time.Sleep(time.Second)
+	mockClock.Add(time.Second)
 
 	// re-activate m3
 	m3.Mark(20)
-	time.Sleep(time.Second + time.Millisecond)
+	mockClock.Add(time.Second)
 
 	// check the totals
 	if total := r.Get("first").Snapshot().Total; total != 10 {
