@@ -1,9 +1,7 @@
 package flow
 
 import (
-	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -30,19 +28,23 @@ func SetClock(c clock.Clock) {
 	cl = c
 }
 
+type SweeperInterface interface {
+	Register(m MeterInterface)
+}
+
 type sweeper struct {
 	sweepOnce sync.Once
 
 	snapshotMu   sync.RWMutex
-	meters       []*Meter
+	meters       []MeterInterface
 	activeMeters int
 
 	lastUpdateTime  time.Time
-	registerChannel chan *Meter
+	registerChannel chan MeterInterface
 }
 
 func (sw *sweeper) start() {
-	sw.registerChannel = make(chan *Meter, 16)
+	sw.registerChannel = make(chan MeterInterface, 16)
 	go sw.run()
 }
 
@@ -53,12 +55,12 @@ func (sw *sweeper) run() {
 	}
 }
 
-func (sw *sweeper) register(m *Meter) {
-	if m.registered {
+func (sw *sweeper) register(m MeterInterface) {
+	if !m.IsIdle() {
 		// registered twice, move on.
 		return
 	}
-	m.registered = true
+	m.SetActive()
 	sw.meters = append(sw.meters, m)
 }
 
@@ -70,7 +72,7 @@ func (sw *sweeper) runActive() {
 	for len(sw.meters) > 0 {
 		// Scale back allocation.
 		if len(sw.meters)*2 < cap(sw.meters) {
-			newMeters := make([]*Meter, len(sw.meters))
+			newMeters := make([]MeterInterface, len(sw.meters))
 			copy(newMeters, sw.meters)
 			sw.meters = newMeters
 		}
@@ -96,87 +98,14 @@ func (sw *sweeper) update() {
 		return
 	}
 	sw.lastUpdateTime = now
-	timeMultiplier := float64(time.Second) / float64(tdiff)
 
 	// Calculate the bandwidth for all active meters.
 	for i, m := range sw.meters[:sw.activeMeters] {
-		total := atomic.LoadUint64(&m.accumulator)
-		diff := total - m.snapshot.Total
-		instant := timeMultiplier * float64(diff)
-
-		if diff > 0 {
-			m.snapshot.LastUpdate = now
-		}
-		// log.Printf("Rate: %f Instant: %f Total: %d", m.snapshot.Rate, instant, total)
-		if m.snapshot.Rate == 0 {
-			m.snapshot.Rate = instant
-		} else {
-			m.snapshot.Rate = math.Max(instant, m.snapshot.Rate)
-		}
-		m.snapshot.Total = total
-
-		/*
-			// This is equivalent to one zeros, then one, then 30 zeros.
-			// We'll consider that to be "idle".
-			if m.snapshot.Rate > IdleRate {
-				continue
-			}
-		*/
-		if now.Sub(m.snapshot.LastUpdate) < IdleTime {
-			continue
-		}
-		// Ok, so we are idle...
-		if !atomic.CompareAndSwapUint64(&m.accumulator, total, 0) {
-			// ... or not
-			atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
-			// atomic.AddUint64(&m.accumulator, -total)
-		}
-		/*
-			// Mark this as idle by zeroing the accumulator.
-			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
-
-			// So..., are we really idle?
-			if swappedTotal > total {
-				// Not so idle...
-				// Now we need to make sure this gets re-registered.
-
-				// First, add back what we removed. If we can do this
-				// fast enough, we can put it back before anyone
-				// notices.
-				currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
-
-				// Did we make it?
-				if currentTotal == swappedTotal {
-					// Yes! Nobody noticed, move along.
-					continue
-				}
-				// No. Someone noticed and will (or has) put back into
-				// the registration channel.
-				//
-				// Remove the snapshot total, it'll get added back on
-				// registration.
-				//
-				// `^uint64(total - 1)` is the two's complement of
-				// `total`. It's the "correct" way to subtract
-				// atomically in go.
-				atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
-			}
-		*/
+		m.Update(tdiff)
 		// Reset the rate, keep the total.
-		m.registered = false
-		m.snapshot.Rate = 0
-		sw.meters[i] = nil
-	}
-
-	// Re-add the total to all the newly active accumulators and set the snapshot to the total.
-	// 1. We don't do this on register to avoid having to take the snapshot lock.
-	// 2. We skip calculating the bandwidth for this round so we get an _accurate_ bandwidth calculation.
-	for _, m := range sw.meters[sw.activeMeters:] {
-		total := atomic.AddUint64(&m.accumulator, m.snapshot.Total)
-		if total > m.snapshot.Total {
-			m.snapshot.LastUpdate = now
+		if m.IsIdle() {
+			sw.meters[i] = nil
 		}
-		m.snapshot.Total = total
 	}
 
 	// compress and trim the meter list
@@ -194,7 +123,7 @@ func (sw *sweeper) update() {
 	sw.activeMeters = len(sw.meters)
 }
 
-func (sw *sweeper) Register(m *Meter) {
+func (sw *sweeper) Register(m MeterInterface) {
 	sw.sweepOnce.Do(sw.start)
 	sw.registerChannel <- m
 }

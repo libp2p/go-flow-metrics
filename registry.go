@@ -11,12 +11,12 @@ type MeterRegistry struct {
 }
 
 // Get gets (or creates) a meter by name.
-func (r *MeterRegistry) Get(name string) *Meter {
+func (r *MeterRegistry) Get(name string) MeterInterface {
 	if m, ok := r.meters.Load(name); ok {
-		return m.(*Meter)
+		return m.(MeterInterface)
 	}
 	m, _ := r.meters.LoadOrStore(name, NewMeter())
-	return m.(*Meter)
+	return m.(MeterInterface)
 }
 
 // FindIdle finds all meters that haven't been used since the given time.
@@ -50,7 +50,7 @@ func (r *MeterRegistry) walkIdle(since time.Time, cb func(key interface{})) {
 
 	r.meters.Range(func(k, v interface{}) bool {
 		// So, this _is_ slightly inaccurate.
-		if v.(*Meter).snapshot.LastUpdate.Before(since) {
+		if v.(MeterInterface).Snapshot().LastUpdate.Before(since) {
 			cb(k)
 		}
 		return true
@@ -66,9 +66,9 @@ func (r *MeterRegistry) Remove(name string) {
 }
 
 // ForEach calls the passed function for each registered meter.
-func (r *MeterRegistry) ForEach(iterFunc func(string, *Meter)) {
+func (r *MeterRegistry) ForEach(iterFunc func(string, MeterInterface)) {
 	r.meters.Range(func(k, v interface{}) bool {
-		iterFunc(k.(string), v.(*Meter))
+		iterFunc(k.(string), v.(MeterInterface))
 		return true
 	})
 }
