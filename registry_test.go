@@ -28,11 +28,11 @@ func TestRegistry(t *testing.T) {
 		t.Error("expected the last update to have been updated")
 	}
 
-	expectedMeters := map[string]*Meter{
+	expectedMeters := map[string]MeterInterface{
 		"first":  m1,
 		"second": m2,
 	}
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if expectedMeters[n] != m {
 			t.Errorf("wrong meter '%s'", n)
 		}
@@ -45,7 +45,7 @@ func TestRegistry(t *testing.T) {
 	r.Remove("first")
 
 	found := false
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if n != "second" {
 			t.Errorf("found unexpected meter: %s", n)
 			return
@@ -68,11 +68,11 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("expected first total to now be 0, got %d", total)
 	}
 
-	expectedMeters = map[string]*Meter{
+	expectedMeters = map[string]MeterInterface{
 		"first":  m3,
 		"second": m2,
 	}
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if expectedMeters[n] != m {
 			t.Errorf("wrong meter '%s'", n)
 		}
@@ -111,7 +111,7 @@ func TestClearRegistry(t *testing.T) {
 
 	r.Clear()
 
-	r.ForEach(func(n string, _m *Meter) {
+	r.ForEach(func(n string, _m MeterInterface) {
 		t.Errorf("expected no meters at all, found a meter %s", n)
 	})
 

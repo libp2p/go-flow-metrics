@@ -15,7 +15,7 @@ import (
 // var IdleRate = 1e-13
 
 // IdleTime the time that need to pass scince last update before we declare a metere idle
-var IdleTime = 20 * time.Second
+//var IdleTime = 20 * time.Second
 
 // The global sweeper.
 var globalSweeper sweeper
@@ -100,7 +100,7 @@ func (sw *sweeper) update() {
 	sw.lastUpdateTime = now
 
 	// Calculate the bandwidth for all active meters.
-	for i, m := range sw.meters[:sw.activeMeters] {
+	for i, m := range sw.meters {
 		m.Update(tdiff)
 		// Reset the rate, keep the total.
 		if m.IsIdle() {
