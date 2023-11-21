@@ -43,7 +43,7 @@ func NewMeter() MeterInterface {
 	return &Meter{
 		fresh: true,
 		snapshot: Snapshot{
-			LastUpdate: time.Now(),
+			LastUpdate: cl.Now(),
 		},
 	}
 }
@@ -54,7 +54,7 @@ func (s Snapshot) String() string {
 
 // Meter is a meter for monitoring a flow.
 type Meter struct {
-	accumulator uint64
+	accumulator atomic.Uint64
 
 	// managed by the sweeper loop.
 	registered bool
@@ -67,7 +67,7 @@ type Meter struct {
 
 // Mark updates the total.
 func (m *Meter) Mark(count uint64) {
-	if count > 0 && atomic.AddUint64(&m.accumulator, count) == count {
+	if count > 0 && m.accumulator.Add(count) == count {
 		// The accumulator is 0 so we probably need to register. We may
 		// already _be_ registered however, if we are, the registration
 		// loop will notice that `m.registered` is set and ignore us.
@@ -85,7 +85,7 @@ func (m *Meter) Snapshot() Snapshot {
 // Reset sets accumulator, total and rate to zero.
 func (m *Meter) Reset() {
 	globalSweeper.snapshotMu.Lock()
-	atomic.StoreUint64(&m.accumulator, 0)
+	m.accumulator.Store(0)
 	m.snapshot.Rate = 0
 	m.snapshot.Total = 0
 	globalSweeper.snapshotMu.Unlock()
@@ -98,7 +98,7 @@ func (m *Meter) String() string {
 func (m *Meter) Update(tdiff time.Duration) {
 	if !m.fresh {
 		timeMultiplier := float64(time.Second) / float64(tdiff)
-		total := atomic.LoadUint64(&m.accumulator)
+		total := m.accumulator.Load()
 		diff := total - m.snapshot.Total
 		instant := timeMultiplier * float64(diff)
 
@@ -116,47 +116,47 @@ func (m *Meter) Update(tdiff time.Duration) {
 		// This is equivalent to one zeros, then one, then 30 zeros.
 		// We'll consider that to be "idle".
 		if m.snapshot.Rate > IdleRate {
-			m.SetIdle()
+			// m.SetIdle()
 			return
 		}
-		{
-			// Ok, so we are idle...
 
-			// Mark this as idle by zeroing the accumulator.
-			swappedTotal := atomic.SwapUint64(&m.accumulator, 0)
+		// Ok, so we are idle...
+		// Mark this as idle by zeroing the accumulator.
+		swappedTotal := m.accumulator.Swap(0)
+		// So..., are we really idle?
+		if swappedTotal > total {
+			// Not so idle...
+			// Now we need to make sure this gets re-registered.
 
-			// So..., are we really idle?
-			if swappedTotal > total {
-				// Not so idle...
-				// Now we need to make sure this gets re-registered.
+			// First, add back what we removed. If we can do this
+			// fast enough, we can put it back before anyone
+			// notices.
+			currentTotal := m.accumulator.Add(swappedTotal)
 
-				// First, add back what we removed. If we can do this
-				// fast enough, we can put it back before anyone
-				// notices.
-				currentTotal := atomic.AddUint64(&m.accumulator, swappedTotal)
-
-				// Did we make it?
-				if currentTotal == swappedTotal {
-					// Yes! Nobody noticed, move along.
-					return
-				}
-				// No. Someone noticed and will (or has) put back into
-				// the registration channel.
-				//
-				// Remove the snapshot total, it'll get added back on
-				// registration.
-				//
-				// `^uint64(total - 1)` is the two's complement of
-				// `total`. It's the "correct" way to subtract
-				// atomically in go.
-				atomic.AddUint64(&m.accumulator, ^uint64(m.snapshot.Total-1))
+			// Did we make it?
+			if currentTotal == swappedTotal {
+				// Yes! Nobody noticed, move along.
+				//m.SetActive()
+				return
 			}
+			// No. Someone noticed and will (or has) put back into
+			// the registration channel.
+			//
+			// Remove the snapshot total, it'll get added back on
+			// registration.
+			//
+			// `^uint64(total - 1)` is the two's complement of
+			// `total`. It's the "correct" way to subtract
+			// atomically in go.
+			m.accumulator.Add(^uint64(m.snapshot.Total - 1))
+		} else {
+			m.SetIdle()
 		}
 	} else {
 		// Re-add the total to all the newly active accumulators and set the snapshot to the total.
 		// 1. We don't do this on register to avoid having to take the snapshot lock.
 		// 2. We skip calculating the bandwidth for this round so we get an _accurate_ bandwidth calculation.
-		total := atomic.AddUint64(&m.accumulator, m.snapshot.Total)
+		total := m.accumulator.Add(m.snapshot.Total)
 		if total > m.snapshot.Total {
 			m.snapshot.LastUpdate = cl.Now()
 		}
@@ -170,6 +170,7 @@ func (m *Meter) IsIdle() bool {
 }
 
 func (m *Meter) SetIdle() {
+	m.snapshot.Rate = 0
 	m.registered = false
 	m.fresh = true
 }

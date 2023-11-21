@@ -11,11 +11,14 @@ func TestRegistry(t *testing.T) {
 	m2 := r.Get("second")
 
 	m1Update := m1.Snapshot().LastUpdate
+	mockClock.Add(5 * time.Second)
 
 	m1.Mark(10)
 	m2.Mark(30)
 
-	time.Sleep(2*time.Second + time.Millisecond)
+	mockClock.Add(1 * time.Second)
+	mockClock.Add(1 * time.Second)
+	mockClock.Add(1 * time.Millisecond)
 
 	if total := r.Get("first").Snapshot().Total; total != 10 {
 		t.Errorf("expected first total to be 10, got %d", total)
@@ -24,8 +27,8 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("expected second total to be 30, got %d", total)
 	}
 
-	if !m1.Snapshot().LastUpdate.After(m1Update) {
-		t.Error("expected the last update to have been updated")
+	if lu := m1.Snapshot().LastUpdate; !lu.After(m1Update) {
+		t.Errorf("expected the last update (%s) to have after (%s)", lu, m1Update)
 	}
 
 	expectedMeters := map[string]MeterInterface{
@@ -82,10 +85,11 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("missing meters: '%v'", expectedMeters)
 	}
 
-	before := time.Now()
+	before := mockClock.Now()
+	mockClock.Add(time.Millisecond)
 	m3.Mark(1)
-	time.Sleep(2 * time.Second)
-	after := time.Now()
+	mockClock.Add(2 * time.Second)
+	after := mockClock.Now()
 	if len(r.FindIdle(before)) != 1 {
 		t.Error("expected 1 idle timer")
 	}
@@ -107,7 +111,7 @@ func TestClearRegistry(t *testing.T) {
 	m1.Mark(10)
 	m2.Mark(30)
 
-	time.Sleep(2 * time.Second)
+	mockClock.Add(2 * time.Second)
 
 	r.Clear()
 
