@@ -35,9 +35,8 @@ type SweeperInterface interface {
 type sweeper struct {
 	sweepOnce sync.Once
 
-	snapshotMu   sync.RWMutex
-	meters       []MeterInterface
-	activeMeters int
+	snapshotMu sync.RWMutex
+	meters     []MeterInterface
 
 	lastUpdateTime  time.Time
 	registerChannel chan MeterInterface
@@ -118,9 +117,6 @@ func (sw *sweeper) update() {
 	}
 
 	sw.meters = sw.meters[:newLen]
-
-	// Finally, mark all meters still in the list as "active".
-	sw.activeMeters = len(sw.meters)
 }
 
 func (sw *sweeper) Register(m MeterInterface) {
