@@ -116,7 +116,6 @@ func (m *Meter) Update(tdiff time.Duration) {
 		// This is equivalent to one zeros, then one, then 30 zeros.
 		// We'll consider that to be "idle".
 		if m.snapshot.Rate > IdleRate {
-			// m.SetIdle()
 			return
 		}
 
@@ -136,7 +135,6 @@ func (m *Meter) Update(tdiff time.Duration) {
 			// Did we make it?
 			if currentTotal == swappedTotal {
 				// Yes! Nobody noticed, move along.
-				//m.SetActive()
 				return
 			}
 			// No. Someone noticed and will (or has) put back into

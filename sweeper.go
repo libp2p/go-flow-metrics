@@ -7,16 +7,6 @@ import (
 	"github.com/benbjohnson/clock"
 )
 
-// IdleRate the rate at which we declare a meter idle (and stop tracking it
-// until it's re-registered).
-//
-// The default ensures that 1 event every ~30s will keep the meter from going
-// idle.
-// var IdleRate = 1e-13
-
-// IdleTime the time that need to pass scince last update before we declare a metere idle
-//var IdleTime = 20 * time.Second
-
 // The global sweeper.
 var globalSweeper sweeper
 
