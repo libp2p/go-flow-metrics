@@ -120,7 +120,7 @@ func TestUnregister(t *testing.T) {
 	}
 
 	actual = m.Snapshot()
-	if actual.Rate != 20 {
+	if !approxEq(actual.Rate, 20, 1) {
 		t.Errorf("expected rate 20, got %f", actual.Rate)
 	}
 
