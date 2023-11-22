@@ -1,4 +1,4 @@
-module github.com/ArtemVasilevMIPT/go-maxflow-metrics
+module github.com/libp2p/go-flow-metrics
 
 go 1.20
 
