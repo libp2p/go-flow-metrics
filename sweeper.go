@@ -90,7 +90,7 @@ func (sw *sweeper) update() {
 
 	// Calculate the bandwidth for all active meters.
 	for i, m := range sw.meters {
-		m.Update(tdiff)
+		m.Update(tdiff, now)
 		// Reset the rate, keep the total.
 		if m.IsIdle() {
 			sw.meters[i] = nil

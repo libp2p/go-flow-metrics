@@ -25,11 +25,8 @@ type Snapshot struct {
 }
 
 type MeterInterface interface {
-	String() string
-	Mark(count uint64)
 	Snapshot() Snapshot
-	Reset()
-	Update(tdiff time.Duration)
+	Update(tdiff time.Duration, now time.Time)
 	IsIdle() bool
 	SetIdle()
 	SetActive()
@@ -95,7 +92,7 @@ func (m *Meter) String() string {
 	return m.Snapshot().String()
 }
 
-func (m *Meter) Update(tdiff time.Duration) {
+func (m *Meter) Update(tdiff time.Duration, now time.Time) {
 	if !m.fresh {
 		timeMultiplier := float64(time.Second) / float64(tdiff)
 		total := m.accumulator.Load()
@@ -103,7 +100,7 @@ func (m *Meter) Update(tdiff time.Duration) {
 		instant := timeMultiplier * float64(diff)
 
 		if diff > 0 {
-			m.snapshot.LastUpdate = cl.Now()
+			m.snapshot.LastUpdate = now
 		}
 
 		if m.snapshot.Rate == 0 {
@@ -156,7 +153,7 @@ func (m *Meter) Update(tdiff time.Duration) {
 		// 2. We skip calculating the bandwidth for this round so we get an _accurate_ bandwidth calculation.
 		total := m.accumulator.Add(m.snapshot.Total)
 		if total > m.snapshot.Total {
-			m.snapshot.LastUpdate = cl.Now()
+			m.snapshot.LastUpdate = now
 		}
 		m.snapshot.Total = total
 		m.fresh = false

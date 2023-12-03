@@ -7,8 +7,8 @@ import (
 
 func TestRegistry(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.Get("first")
-	m2 := r.Get("second")
+	m1 := r.Get("first").(*Meter)
+	m2 := r.Get("second").(*Meter)
 
 	m1Update := m1.Snapshot().LastUpdate
 	mockClock.Add(5 * time.Second)
@@ -63,7 +63,7 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("didn't find second meter")
 	}
 
-	m3 := r.Get("first")
+	m3 := r.Get("first").(*Meter)
 	if m3 == m1 {
 		t.Error("should have gotten a new meter")
 	}
@@ -105,8 +105,8 @@ func TestRegistry(t *testing.T) {
 
 func TestClearRegistry(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.Get("first")
-	m2 := r.Get("second")
+	m1 := r.Get("first").(*Meter)
+	m2 := r.Get("second").(*Meter)
 
 	m1.Mark(10)
 	m2.Mark(30)
