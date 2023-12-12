@@ -66,11 +66,21 @@ func (r *MeterRegistry) Remove(name string) {
 }
 
 // ForEach calls the passed function for each registered meter.
-func (r *MeterRegistry) ForEach(iterFunc func(string, MeterInterface)) {
-	r.meters.Range(func(k, v interface{}) bool {
-		iterFunc(k.(string), v.(MeterInterface))
-		return true
-	})
+//
+// Note: switch was added for compatibility reasons
+func (r *MeterRegistry) ForEach(iterFunc interface{}) {
+	switch f := iterFunc.(type) {
+	case func(string, MeterInterface):
+		r.meters.Range(func(k, v interface{}) bool {
+			f(k.(string), v.(MeterInterface))
+			return true
+		})
+	case func(string, *Meter):
+		r.meters.Range(func(k, v interface{}) bool {
+			f(k.(string), v.(*Meter))
+			return true
+		})
+	}
 }
 
 // Clear removes all meters from the registry.
