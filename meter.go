@@ -27,6 +27,7 @@ type Snapshot struct {
 type MeterInterface interface {
 	Snapshot() Snapshot
 	Update(tdiff time.Duration, now time.Time)
+	Mark(count uint64)
 	IsIdle() bool
 	SetIdle()
 	SetActive()
