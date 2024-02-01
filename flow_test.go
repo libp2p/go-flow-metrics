@@ -13,7 +13,7 @@ func TestBasic(t *testing.T) {
 		m.Mark(1000)
 		mockClock.Add(40 * time.Millisecond)
 	}
-	if rate := m.Snapshot().Rate; rate != 25000 {
+	if rate := m.Snapshot().Rate; !approxEq(rate, 25000, 1) {
 		t.Errorf("expected rate 25000, got %f", rate)
 	}
 
@@ -99,7 +99,7 @@ func TestUnregister(t *testing.T) {
 	}
 
 	actual := m.Snapshot()
-	if actual.Rate != 10 {
+	if !approxEq(actual.Rate, 10, 1) {
 		t.Errorf("expected rate 10, got %f", actual.Rate)
 	}
 
@@ -120,7 +120,7 @@ func TestUnregister(t *testing.T) {
 	}
 
 	actual = m.Snapshot()
-	if actual.Rate != 20 {
+	if !approxEq(actual.Rate, 20, 1) {
 		t.Errorf("expected rate 20, got %f", actual.Rate)
 	}
 

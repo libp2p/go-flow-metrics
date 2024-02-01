@@ -7,8 +7,8 @@ import (
 
 func TestRegistry(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.Get("first")
-	m2 := r.Get("second")
+	m1 := r.Get("first").(*Meter)
+	m2 := r.Get("second").(*Meter)
 
 	m1Update := m1.Snapshot().LastUpdate
 	mockClock.Add(5 * time.Second)
@@ -31,11 +31,11 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("expected the last update (%s) to have after (%s)", lu, m1Update)
 	}
 
-	expectedMeters := map[string]*Meter{
+	expectedMeters := map[string]MeterInterface{
 		"first":  m1,
 		"second": m2,
 	}
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if expectedMeters[n] != m {
 			t.Errorf("wrong meter '%s'", n)
 		}
@@ -48,7 +48,7 @@ func TestRegistry(t *testing.T) {
 	r.Remove("first")
 
 	found := false
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if n != "second" {
 			t.Errorf("found unexpected meter: %s", n)
 			return
@@ -63,7 +63,7 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("didn't find second meter")
 	}
 
-	m3 := r.Get("first")
+	m3 := r.Get("first").(*Meter)
 	if m3 == m1 {
 		t.Error("should have gotten a new meter")
 	}
@@ -71,11 +71,11 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("expected first total to now be 0, got %d", total)
 	}
 
-	expectedMeters = map[string]*Meter{
+	expectedMeters = map[string]MeterInterface{
 		"first":  m3,
 		"second": m2,
 	}
-	r.ForEach(func(n string, m *Meter) {
+	r.ForEach(func(n string, m MeterInterface) {
 		if expectedMeters[n] != m {
 			t.Errorf("wrong meter '%s'", n)
 		}
@@ -105,8 +105,8 @@ func TestRegistry(t *testing.T) {
 
 func TestClearRegistry(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.Get("first")
-	m2 := r.Get("second")
+	m1 := r.Get("first").(*Meter)
+	m2 := r.Get("second").(*Meter)
 
 	m1.Mark(10)
 	m2.Mark(30)
@@ -115,7 +115,7 @@ func TestClearRegistry(t *testing.T) {
 
 	r.Clear()
 
-	r.ForEach(func(n string, _m *Meter) {
+	r.ForEach(func(n string, _m MeterInterface) {
 		t.Errorf("expected no meters at all, found a meter %s", n)
 	})
 

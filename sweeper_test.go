@@ -16,9 +16,9 @@ func init() {
 // regression test for libp2p/go-libp2p-core#65
 func TestIdleInconsistency(t *testing.T) {
 	r := new(MeterRegistry)
-	m1 := r.Get("first")
-	m2 := r.Get("second")
-	m3 := r.Get("third")
+	m1 := r.Get("first").(*Meter)
+	m2 := r.Get("second").(*Meter)
+	m3 := r.Get("third").(*Meter)
 
 	m1.Mark(10)
 	m2.Mark(20)
