@@ -29,6 +29,9 @@ func SetClock(c clock.Clock) {
 	cl = c
 }
 
+// We tick every second.
+var ewmaRate = time.Second
+
 type sweeper struct {
 	sweepOnce sync.Once
 
@@ -62,7 +65,7 @@ func (sw *sweeper) register(m *Meter) {
 }
 
 func (sw *sweeper) runActive() {
-	ticker := cl.Ticker(time.Second)
+	ticker := cl.Ticker(ewmaRate)
 	defer ticker.Stop()
 
 	sw.lastUpdateTime = cl.Now()
@@ -91,11 +94,29 @@ func (sw *sweeper) update() {
 
 	now := cl.Now()
 	tdiff := now.Sub(sw.lastUpdateTime)
-	if tdiff <= 0 {
+	if tdiff < 0 {
+		// we went back in time, skip this update.
+		// note: if we go _forward_ in time, we don't really care as
+		// we'll just log really low bandwidth for a second.
+		sw.lastUpdateTime = now
+
+		// update the totals but leave the rates alone.
+		for _, m := range sw.meters {
+			m.snapshot.Total = atomic.LoadUint64(&m.accumulator)
+		}
+		return
+	} else if tdiff <= ewmaRate/10 {
+		// If the time-delta is too small, wait a bit. Otherwise, we can end up logging a
+		// very large spike.
+		//
+		// This won't fix the case where a user passes a large update (spanning multiple
+		// seconds) to `Meter.Mark`, but it will fix the case where the system fails to
+		// accurately schedule the sweeper goroutine.
 		return
 	}
+
 	sw.lastUpdateTime = now
-	timeMultiplier := float64(time.Second) / float64(tdiff)
+	timeMultiplier := float64(ewmaRate) / float64(tdiff)
 
 	// Calculate the bandwidth for all active meters.
 	for i, m := range sw.meters[:sw.activeMeters] {
