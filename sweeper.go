@@ -3,6 +3,7 @@ package flow
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/benbjohnson/clock"
