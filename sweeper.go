@@ -102,7 +102,7 @@ func (sw *sweeper) update() {
 
 		// update the totals but leave the rates alone.
 		for _, m := range sw.meters {
-			m.snapshot.Total = atomic.LoadUint64(&m.accumulator)
+			m.snapshot.Total = m.accumulator.Load()
 		}
 		return
 	} else if tdiff <= ewmaRate/10 {
